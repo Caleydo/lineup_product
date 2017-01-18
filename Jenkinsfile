@@ -17,7 +17,9 @@ node {
  stage('Build') {
    try {
      wrap([$class: 'Xvfb']) {
+	  sshagent(['8d0d3e70-a5ee-4180-b3b8-65a75d31eae8']) {
        sh 'npm run dist'
+	  } 
      }
      currentBuild.result = "SUCCESS"
    } catch (e) {
