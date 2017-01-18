@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "build": "node build.js --skipTests",
+    "build": "node build.js --quiet",
     "predist": "npm run build",
     "dist": "mkdirp dist && cd build && tar cvzf ../dist/lineup_product.tar.gz *"
   },
