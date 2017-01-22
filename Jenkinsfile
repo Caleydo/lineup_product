@@ -17,7 +17,7 @@ node {
  stage('Build') {
    try {
      withCredentials([usernameColonPassword(credentialsId: '8d0d3e70-a5ee-4180-b3b8-65a75d31eae8', variable: 'PHOVEA_GITHUB_CREDENTIALS')]) {
-       docker.withRegistry("https://922145058410.dkr.ecr.eu-central-1.amazonaws.com", "ecr:	2ef11e7e-9b01-467a-bb75-79d6bf4f1658") {
+       docker.withRegistry("https://922145058410.dkr.ecr.eu-central-1.amazonaws.com", "ecr:9d79a73b-df0a-4846-adc8-a27faef6533f") {
          wrap([$class: 'Xvfb']) {
           sh 'node build.js --skipTests --skipSaveImages --pushTo=922145058410.dkr.ecr.eu-central-1.amazonaws.com/caleydo'
          }
