@@ -6,6 +6,8 @@ node {
  stage('Before Install') {
    def nodeHome = tool 'node-v7'
    env.PATH="${env.PATH}:${nodeHome}/bin"
+   def dockerHome = tool 'docker'
+   env.PATH="${env.PATH}:${dockerHome}/bin"
  }
 
  stage('Install') {
