@@ -47,15 +47,9 @@ function fromRepoUrl(url) {
  */
 function spawn(cmd, args, opts) {
   const spawn = require('child_process').spawn;
+  const _ = require('lodash');
   return new Promise((resolve, reject) => {
-    const p = spawn(cmd, args, opts);
-    if (!quiet) {
-      p.stdout.on('data', (data) => console.log(data.toString()));
-      p.stderr.on('data', (data) => console.error(chalk.red(data.toString())));
-    }
-	p.on('error', (error) => {
-		console.error(error);
-	});
+    const p = spawn(cmd, args, _.merge({stdio: 'inherit'}, opts));
     p.on('exit', (code, signal) => {
       if (code === 0) {
         console.info(cmd, 'ok status code',code, signal);
@@ -78,7 +72,7 @@ function spawn(cmd, args, opts) {
 function npm(cwd, cmd) {
   console.log(cwd, chalk.blue('running npm', cmd));
   const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  return spawn(npm, (cmd || 'install').split(' '), {cwd, env, shell: true});
+  return spawn(npm, (cmd || 'install').split(' '), {cwd, env});
 }
 
 /**
