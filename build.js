@@ -49,11 +49,11 @@ function spawn(cmd, args, opts) {
   const spawn = require('child_process').spawn;
   const _ = require('lodash');
   return new Promise((resolve, reject) => {
-    const p = spawn(cmd, args, _.merge({stdio: 'inherit'}, opts));
+    const p = spawn(cmd, args, _.merge({stdio: 'inherit', maxBuffer: Number.MAX_VALUE}, opts));
     p.on('exit', (code, signal) => {
       if (code === 0) {
         console.info(cmd, 'ok status code',code, signal);
-        resolve(code)
+        resolve(code);
       } else {
         console.error(cmd, 'status code',code, signal);
         reject(`${cmd} failed with status code ${code} ${signal}`);
