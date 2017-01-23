@@ -13,6 +13,7 @@ node {
  stage('Install') {
    sh 'node -v'
    sh 'npm --version'
+   sh 'docker --version'
    sh 'npm install'
  }
 
