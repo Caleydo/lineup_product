@@ -49,8 +49,8 @@ function spawn(cmd, args, opts) {
   const spawn = require('child_process').spawn;
   const _ = require('lodash');
   return new Promise((resolve, reject) => {
-    const p = spawn(cmd, args, _.merge({stdio: 'inherit', maxBuffer: Number.MAX_VALUE}, opts));
-    p.on('exit', (code, signal) => {
+    const p = spawn(cmd, args, _.merge({stdio: ['ignore', 1, 2]}, opts));
+    p.on('close', (code, signal) => {
       if (code === 0) {
         console.info(cmd, 'ok status code',code, signal);
         resolve(code);
