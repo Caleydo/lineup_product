@@ -53,6 +53,9 @@ function spawn(cmd, args, opts) {
       p.stdout.on('data', (data) => console.log(data.toString()));
       p.stderr.on('data', (data) => console.error(chalk.red(data.toString())));
     }
+	p.on('error', (error) => {
+		console.error(error);
+	});
     p.on('exit', (code, signal) => {
       if (code === 0) {
         console.info(cmd, 'ok status code',code, signal);
@@ -75,7 +78,7 @@ function spawn(cmd, args, opts) {
 function npm(cwd, cmd) {
   console.log(cwd, chalk.blue('running npm', cmd));
   const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  return spawn(npm, (cmd || 'install').split(' '), {cwd, env});
+  return spawn(npm, (cmd || 'install').split(' '), {cwd, env, shell: true});
 }
 
 /**
