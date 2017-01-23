@@ -53,7 +53,14 @@ function spawn(cmd, args, opts) {
       p.stdout.on('data', (data) => console.log(data.toString()));
       p.stderr.on('data', (data) => console.error(chalk.red(data.toString())));
     }
-    p.on('close', (code) => code == 0 ? resolve() : reject(code));
+    p.on('close', (code) => {
+      if (code === 0) {
+        resolve(code)
+      } else {
+        console.error(cmd, 'status code',code);
+        reject(`${cmd} failed with status code ${code}`);
+      }
+    });
   });
 }
 
