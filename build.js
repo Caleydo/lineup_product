@@ -17,14 +17,17 @@ pkg.version = pkg.version.replace('SNAPSHOT', buildId);
 const env = Object.assign({}, process.env);
 
 function toRepoUrl(url) {
-  return url.startsWith('https://github.com/') ? url : `https://github.com/${url}`;
+  if (argv.useSSH) {
+    return `git@github.com:${url}.git`
+  }
+  return url.startsWith('https://github.com/') ? url : `https://github.com/${url}.git`;
 }
 
 
 function toRepoUrlWithUser(url) {
   const repo = toRepoUrl(url);
   const username_and_password = process.env.PHOVEA_GITHUB_CREDENTIALS;
-  if (repo.includes(':') || !username_and_password) {
+  if (repo.includes('git@github.com') || !username_and_password) {
     return repo;
   }
   return repo.replace('://', `://${username_and_password}@`);
@@ -145,7 +148,7 @@ function yo(generator, options, cwd) {
   // call yo internally
   const yeomanEnv = yeoman.createEnv([], {cwd, env}, quiet ? createQuietTerminalAdapter() : undefined);
   yeomanEnv.register(require.resolve('generator-phovea/generators/' + generator), 'phovea:' + generator);
-  const runYo = () => new Promise((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     try {
       console.log(cwd, chalk.blue('running yo phovea:' + generator));
       yeomanEnv.run('phovea:' + generator, options, resolve);
@@ -154,10 +157,6 @@ function yo(generator, options, cwd) {
       reject(e);
     }
   });
-  // move my own .yo-rc.json to avoid a conflict
-  return fs.renameAsync('.yo-rc.json', '.yo-rc_tmp.json')
-    .then(runYo)
-    .then(() => fs.renameAsync('.yo-rc_tmp.json', '.yo-rc.json'));
 }
 
 function cloneRepo(p, cwd) {
@@ -169,13 +168,21 @@ function cloneRepo(p, cwd) {
   return spawn('git', ['clone', '--depth', '1', '-b', p.branch, toRepoUrlWithUser(p.repo), p.name], {cwd});
 }
 
+function resolvePluginType(p, dir) {
+  return fs.readJSONAsync(`${dir}/${p.name}/.yo-rc.json`).then((json) => {
+    p.pluginType = json['generator-phovea'].type;
+    p.isHybridType = p.pluginType.includes('-');
+  });
+}
+
 function preBuild(p, dir) {
   const hasAdditional = p.additional.length > 0;
   let act = fs.emptyDirAsync(dir)
-    .then(() => cloneRepo(p, dir));
+    .then(() => cloneRepo(p, dir))
+    .then(() => resolvePluginType(p, dir));
   if (hasAdditional) {
     act = act
-      .then(() => Promise.all(p.additional.map((pi) => cloneRepo(pi, dir))));
+      .then(() => Promise.all(p.additional.map((pi) => cloneRepo(pi, dir).then(resolvePluginType.bind(this, pi, dir)))));
   }
   return act;
 }
@@ -231,14 +238,14 @@ function buildWebApp(p, dir) {
       .then(() => npm(dir, 'install'));
     //test all modules
     if (hasAdditional && !argv.skipTests) {
-      act = act.then(() => Promise.all(p.additional.map((pi) => npm(dir, `run test:${pi.name}`))));
+      act = act.then(() => Promise.all(p.additional.map((pi) => npm(dir, `run test${pi.isHybridType ? ':web':''}:${pi.name}`))));
     }
     act = act
-      .then(() => npm(dir, `run dist:${p.name}`));
+      .then(() => npm(dir, `run dist${p.isHybridType ? ':web':''}:${p.name}`));
   } else {
     act = act
       .then(() => npm(dir + '/' + name, 'install'))
-      .then(() => npm(dir + '/' + name, 'run dist'));
+      .then(() => npm(dir + '/' + name, `run dist${p.isHybridType ? ':web':''}`));
   }
   return act
     .then(() => fs.renameAsync(`${dir}/${p.name}/dist/${p.name}.tar.gz`, `./build/${p.label}.tar.gz`))
@@ -255,8 +262,8 @@ function buildServerApp(p, dir) {
 
   act = act
     .then(() => console.log(chalk.yellow('create test environment')))
-    .then(() => npm(dir + '/' + name, 'run build'))
-    .then(() => Promise.all(p.additional.map((pi) => npm(dir + '/' + pi.name, `run build`))));
+    .then(() => npm(dir + '/' + name, `run build${p.isHybridType ? ':python':''}`))
+    .then(() => Promise.all(p.additional.map((pi) => npm(dir + '/' + pi.name, `run build${pi.isHybridType ? ':python':''}`))));
 
   //copy all together
   act = act
@@ -369,26 +376,42 @@ if (require.main === module) {
   const singleService = descs.length === 1;
   const productName = pkg.name.replace('_product', '');
 
+
+
   fs.emptyDirAsync('build')
     .then(dockerRemoveImages.bind(this, productName))
-    .then(() => Promise.all(descs.map((d, i) => {
-      d.additional = d.additional || []; //default values
-      d.name = d.name || fromRepoUrl(d.repo);
-      d.label = d.label || d.name;
-      if (singleService) {
-        d.image = `${productName}:${pkg.version}`;
+    // move my own .yo-rc.json to avoid a conflict
+    .then(fs.renameAsync('.yo-rc.json', '.yo-rc_tmp.json'))
+    .then(() => {
+      const buildOne = (d, i) => {
+        d.additional = d.additional || []; //default values
+        d.name = d.name || fromRepoUrl(d.repo);
+        d.label = d.label || d.name;
+        if (singleService) {
+          d.image = `${productName}:${pkg.version}`;
+        } else {
+          d.image = `${productName}/${d.label}:${pkg.version}`;
+        }
+        let wait = buildImpl(d, './tmp' + i);
+        wait.catch((error) => {
+          d.error = error;
+          console.error('ERROR building ', d, error);
+        });
+        return wait;
+      };
+      if (argv.serial) {
+        let r = Promise.resolve([]);
+        for (let i = 0; i < descs.length; ++i) {
+          r = r.then((arr) => buildOne(descs[i], i).then((f) => arr.concat(f)));
+        }
+        return r;
       } else {
-        d.image = `${productName}/${d.label}:${pkg.version}`;
+        return Promise.all(descs.map(buildOne));
       }
-      let wait = buildImpl(d, './tmp' + i);
-      wait.catch((error) => {
-        d.error = error;
-        console.error('ERROR building ', d, error);
-      });
-      return wait;
-    })))
+    })
     .then((composeFiles) => buildCompose(descs, composeFiles.filter((d) => !!d)))
     .then(pushImages.bind(this))
+    .then(() => fs.renameAsync('.yo-rc_tmp.json', '.yo-rc.json'))
     .then(() => {
       console.log(chalk.bold('summary: '));
       const maxLength = Math.max(...descs.map((d) => d.name.length));
