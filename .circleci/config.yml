@@ -1,0 +1,38 @@
+version: 2
+jobs:
+  build:
+    working_directory: ~/phovea
+    docker:
+      - image: caleydo/phovea_circle_python:1.0
+      - image: docker:17.05.0-ce-git
+    steps:
+      - checkout
+      - setup_remote_docker
+      - restore_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+      - run:
+          name: install-npm-wee
+          command: npm install
+      - save_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+          paths:
+            - ./node_modules
+      - run:
+          name: login ecr and docker hub
+          command: |
+            cat > ~/.dockercfg << EOF
+            {
+              "https://index.docker.io/v1/": {
+                "auth": "$DOCKER_AUTH"
+              }
+            }
+            EOF
+            login="$(aws ecr get-login)"
+            ${login}
+      - deploy:
+          name: build and deploy
+          command: |
+            node build.js --skipTests --skipSaveImage --noDefaultTags --pushExtra=latest --pushTo=922145058410.dkr.ecr.eu-central-1.amazonaws.com/caleydo
+      - store_artifacts:
+          path: build
+          prefix: build
