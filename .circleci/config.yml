@@ -41,7 +41,7 @@ jobs:
             }
             EOF
             export AWS_DEFAULT_REGION=eu-central-1
-            login="$(aws ecr get-login)"
+            login="$(aws ecr get-login --no-include-email)"
             ${login}
       - deploy:
           name: build and deploy
