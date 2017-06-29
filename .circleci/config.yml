@@ -32,7 +32,7 @@ jobs:
       - deploy:
           name: build and deploy
           command: |
-            node build.js --skipTests --skipSaveImage --noDefaultTags --pushExtra=latest --pushTo=922145058410.dkr.ecr.eu-central-1.amazonaws.com/caleydo
+            node build.js --skipTests --skipSaveImage --noDefaultTags --pushExtra=test --pushTo=922145058410.dkr.ecr.eu-central-1.amazonaws.com/caleydo
       - store_artifacts:
           path: build
           prefix: build
