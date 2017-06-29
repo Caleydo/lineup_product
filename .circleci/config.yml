@@ -36,8 +36,15 @@ jobs:
       - deploy:
           name: build and deploy
           command: |
-            tagLookup="AWS_TAG_${CIRCLE_BRANCH}"
-            awsTag=${!tagLookup:-latest}
+            case $CIRCLE_BRANCH in
+            master)
+              awsTag="latest"
+              ;;
+            *)
+              awsTag="${CIRCLE_BRANCH}"
+              ;;
+            esac
+            echo "using tag: --${awsTag}--"
             node build.js --skipTests --skipSaveImage --noDefaultTags --pushExtra=${awsTag} --pushTo=922145058410.dkr.ecr.eu-central-1.amazonaws.com/caleydo
       - store_artifacts:
           path: build
@@ -45,7 +52,7 @@ jobs:
       - deploy:
           name: restart aws #assumes the task definition is called <reponame>-<branch>
           command: |
-            awsFamily="${CIRCLE_PROJECT_REPONAME}-${CIRCLE_BRANCH}
+            awsFamily="${CIRCLE_PROJECT_REPONAME}-${CIRCLE_BRANCH}"
             tasksExists=$(aws --output text ecs list-task-definitions --family-prefix ${awsFamily})
             echo "--${tasksExists}--"
             if [ ! -z "$tasksExists" ]; then
