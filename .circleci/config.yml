@@ -66,6 +66,7 @@ jobs:
             . ~/venv/bin/activate
             export AWS_DEFAULT_REGION=eu-central-1
             awsFamily="${CIRCLE_PROJECT_REPONAME}-${CIRCLE_BRANCH}"
+            echo "--${awsFamily}--"
             tasksExists=$(aws --output text ecs list-task-definitions --family-prefix ${awsFamily})
             echo "--${tasksExists}--"
             if [ ! -z "$tasksExists" ]; then
