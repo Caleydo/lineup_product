@@ -18,6 +18,9 @@ jobs:
           paths:
             - ./node_modules
       - run:
+          name: install awscli
+          command: pip install awscli==1.11.113
+      - run:
           name: login ecr and docker hub
           command: |
             cat > ~/.dockercfg << EOF
