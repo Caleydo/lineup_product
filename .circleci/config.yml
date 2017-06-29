@@ -74,7 +74,7 @@ jobs:
               isTaskRunning=$(aws --output text ecs list-tasks --cluster caleydo --family ${awsFamily})
               echo "--${isTaskRunning}--"
               if [ ! -z "$isTaskRunning" ]; then
-                taskId=$(cut -f2 ${isTaskRunning})
+                taskId=$(echo ${isTaskRunning} | cut -f2)
                 echo "--${taskId}--"
                 aws --output text ecs stop-task --cluster caleydo --task ${taskId}
               fi
