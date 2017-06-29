@@ -64,6 +64,7 @@ jobs:
           name: restart aws #assumes the task definition is called <reponame>-<branch>
           command: |
             . ~/venv/bin/activate
+            export AWS_DEFAULT_REGION=eu-central-1
             awsFamily="${CIRCLE_PROJECT_REPONAME}-${CIRCLE_BRANCH}"
             tasksExists=$(aws --output text ecs list-task-definitions --family-prefix ${awsFamily})
             echo "--${tasksExists}--"
