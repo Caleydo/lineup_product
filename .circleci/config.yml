@@ -36,7 +36,25 @@ jobs:
       - deploy:
           name: build and deploy
           command: |
-            node build.js --skipTests --skipSaveImage --noDefaultTags --pushExtra=test --pushTo=922145058410.dkr.ecr.eu-central-1.amazonaws.com/caleydo
+            tagLookup="AWS_TAG_${CIRCLE_BRANCH}"
+            awsTag=${!tagLookup:-latest}
+            node build.js --skipTests --skipSaveImage --noDefaultTags --pushExtra=${awsTag} --pushTo=922145058410.dkr.ecr.eu-central-1.amazonaws.com/caleydo
       - store_artifacts:
           path: build
           prefix: build
+      - deploy:
+          name: restart aws #assumes the task definition is called <reponame>-<branch>
+          command: |
+            awsFamily="${CIRCLE_PROJECT_REPONAME}-${CIRCLE_BRANCH}
+            tasksExists=$(aws --output text ecs list-task-definitions --family-prefix ${awsFamily})
+            echo "--${tasksExists}--"
+            if [ ! -z "$tasksExists" ]; then
+              isTaskRunning=$(aws --output text ecs list-tasks --cluster caleydo --family ${awsFamily})
+              echo "--${isTaskRunning}--"
+              if [ ! -z "$isTaskRunning" ]; then
+                taskId=$(cut -f2 ${isTaskRunning})
+                echo "--${taskId}--"
+                aws --output text ecs stop-task --cluster caleydo --task ${taskId}
+              fi
+              aws --output text ecs run-task --cluster caleydo --task-definition ${awsFamily} --started-by CircleCIAutoUpdate
+            fi
