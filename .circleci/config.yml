@@ -17,12 +17,22 @@ jobs:
           key: dependency-cache-{{ checksum "package.json" }}
           paths:
             - ./node_modules
+      - restore_cache:
+          key: awscli-1.11.113
       - run:
-          name: install awscli
-          command: sudo pip install awscli==1.11.113
+          name: install-aws-cli
+          command: |
+            virtualenv ~/venv
+            . ~/venv/bin/activate
+            pip install awscli==1.11.113
+      - save_cache:
+          key: awscli-1.11.113
+          paths:
+          - ~/venv
       - run:
           name: login ecr and docker hub
           command: |
+            . ~/venv/bin/activate
             cat > ~/.dockercfg << EOF
             {
               "https://index.docker.io/v1/": {
@@ -36,6 +46,7 @@ jobs:
       - deploy:
           name: build and deploy
           command: |
+            . ~/venv/bin/activate
             case $CIRCLE_BRANCH in
             master)
               awsTag="latest"
@@ -52,6 +63,7 @@ jobs:
       - deploy:
           name: restart aws #assumes the task definition is called <reponame>-<branch>
           command: |
+            . ~/venv/bin/activate
             awsFamily="${CIRCLE_PROJECT_REPONAME}-${CIRCLE_BRANCH}"
             tasksExists=$(aws --output text ecs list-task-definitions --family-prefix ${awsFamily})
             echo "--${tasksExists}--"
